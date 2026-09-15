@@ -55,3 +55,5 @@ DEFAULT_HEADERS = {
     ),
     "Accept-Language": "ko-KR,ko;q=0.9,en-US;q=0.8,en;q=0.7",
 }
+
+KAKAO_BOT_ID = "6aa89c3e872d86c4366afea7"
