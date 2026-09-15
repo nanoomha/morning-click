@@ -1,12 +1,12 @@
 """오전 10시: 오늘의 검색엔진으로 12개 키워드 순위를 조회하고,
-   Excel에 기록한 뒤 결과 메시지를 표준출력으로 내보낸다.
+   Excel에 기록한 뒤 결과를 카카오톡 "나에게 보내기"로 자동 전송한다.
 
-카카오톡 전송은 이 스크립트가 직접 하지 않는다. Play MCP의 KakaotalkChat-MemoChat은
-MCP 도구라서 Claude(에이전트) 세션 안에서만 호출할 수 있고, Windows 작업 스케줄러가
-띄우는 독립 python.exe 프로세스에서는 호출할 수 없기 때문이다. 대신 이 스크립트는
-결과 메시지를 표준출력(stdout)에 "그 한 줄/블록만" 깔끔하게 출력하고, 이를 실행한
-Claude 세션이 그 출력을 그대로 읽어 MemoChat(message=...)을 호출해 전송한다.
-진단/경고 로그는 표준오류(stderr)로 보내 stdout이 메시지로만 채워지도록 한다.
+Windows Task Scheduler가 매일 평일 10:00에 이 스크립트를 직접 실행하므로,
+Claude 세션 등 외부 개입 없이 완전히 무인으로 동작해야 한다. 전송은
+src/kakao_sender.py가 카카오 REST API(OAuth refresh_token)를 통해 직접 처리한다
+(최초 1회 kakao_auth_setup.py로 인증 필요). 메시지가 너무 길어지는 경우를 대비해
+결과를 여러 메시지로 나눠 순서대로 전송한다.
+진단/경고 로그는 표준오류(stderr)로 보낸다.
 """
 import sys
 import traceback
@@ -15,6 +15,7 @@ from typing import List, Optional, Tuple
 
 from config import EXCEL_PATH, HOMEPAGE_DOMAIN, KEYWORDS, MAX_RESULTS_TO_CHECK
 from src.excel_writer import append_results
+from src.kakao_sender import send_text_to_me
 from src.schedule_logic import GOOGLE, engine_label_ko, get_today_engine
 from src.search import google_search, naver_search
 
@@ -35,19 +36,16 @@ def fetch_ranks(engine: str) -> List[Tuple[str, Optional[int]]]:
     return results
 
 
-MEMOCHAT_CHAR_LIMIT = 200
-# Claude 세션이 stdout에서 메시지 여러 개를 정확히 구분해 각각 MemoChat으로
-# 보낼 수 있도록 쓰는 구분자. 메시지 본문에는 나타나지 않는 문자열이어야 한다.
-MEMOCHAT_MESSAGE_SEPARATOR = "\n<<<MEMOCHAT_SPLIT>>>\n"
+MESSAGE_CHAR_LIMIT = 200
 
 
 def build_summary_chunks(
     today: date,
     engine: str,
     results: List[Tuple[str, Optional[int]]],
-    limit: int = MEMOCHAT_CHAR_LIMIT,
+    limit: int = MESSAGE_CHAR_LIMIT,
 ) -> List[str]:
-    """결과를 MemoChat 글자수 제한(기본 200자) 안에 들어가도록 여러 메시지로 나눈다.
+    """결과를 메시지 하나당 글자수 제한(기본 200자) 안에 들어가도록 여러 개로 나눈다.
 
     키워드가 늘거나 순위 자릿수가 커져도 한 메시지가 제한을 넘지 않도록 항상
     안전하게 분할한다.
@@ -81,7 +79,9 @@ def main() -> None:
     append_results(EXCEL_PATH, today, engine_label_ko(engine), results)
 
     chunks = build_summary_chunks(today, engine, results)
-    print(MEMOCHAT_MESSAGE_SEPARATOR.join(chunks))
+    for chunk in chunks:
+        send_text_to_me(chunk)
+    print("\n\n".join(chunks))
 
 
 if __name__ == "__main__":
