@@ -42,6 +42,9 @@
   `NAVER_CLIENT_SECRET`에 입력. (검색 API 사용 설정 필요)
 - **구글**: https://serpapi.com 가입 후 API Key를 `.env`의 `SERPAPI_KEY`에 입력.
   (무료 플랜 월 100회 제공)
+  - 설정하지 않으면 Selenium(헤드리스 Chrome)으로 google.com을 직접 렌더링해
+    순위를 조회합니다. 이 경우 **PC에 Google Chrome이 설치되어 있어야** 합니다
+    (Selenium 4.6+ 는 chromedriver를 자동으로 관리하므로 별도 설치는 불필요).
 
 ## 카카오톡 알림 설정 (필수)
 
