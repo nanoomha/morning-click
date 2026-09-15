@@ -5,3 +5,4 @@ __pycache__/
 data/*.xlsx
 data/kakao_token.json
 logs/*.log
+*.zip
