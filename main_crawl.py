@@ -1,11 +1,13 @@
-"""오전 10시: 오늘의 검색엔진으로 12개 키워드 순위를 조회하고,
-   Excel에 기록한 뒤 결과를 카카오톡 "나에게 보내기"로 자동 전송한다.
+"""오늘의 검색엔진으로 12개 키워드 순위를 조회하고, Excel에 기록한 뒤 결과를
+카카오톡 "나에게 보내기"로 전송한다.
 
-Windows Task Scheduler가 매일 평일 10:00에 이 스크립트를 직접 실행하므로,
-Claude 세션 등 외부 개입 없이 완전히 무인으로 동작해야 한다. 전송은
-src/kakao_sender.py가 카카오 REST API(OAuth refresh_token)를 통해 직접 처리한다
-(최초 1회 kakao_auth_setup.py로 인증 필요). 메시지가 너무 길어지는 경우를 대비해
-결과를 여러 메시지로 나눠 순서대로 전송한다.
+평일 09:00 자동 실행은 main_notify_schedule.py가 담당한다 (스케줄 안내 전송 직후
+이 모듈의 fetch_ranks()/build_summary_chunks()를 그대로 불러와 이어서 순위 조회
+결과까지 전송함). 이 파일은 그 로직을 담고 있으면서, 필요할 때 수동으로 다시
+크롤링을 돌려보고 싶을 때 `python main_crawl.py`로 단독 실행할 수도 있다.
+전송은 src/kakao_sender.py가 카카오 REST API(OAuth refresh_token)를 통해 직접
+처리한다(최초 1회 kakao_auth_setup.py로 인증 필요). 메시지가 너무 길어지는
+경우를 대비해 결과를 여러 메시지로 나눠 순서대로 전송한다.
 진단/경고 로그는 표준오류(stderr)로 보낸다.
 """
 import sys

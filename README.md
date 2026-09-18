@@ -8,15 +8,19 @@
 
 - 검색엔진은 **하루는 구글, 하루는 네이버**로 자동 교대됩니다 (날짜 기반 결정,
   별도 설정 불필요). `src/schedule_logic.py` 참고.
-- 평일 **09:00**: `main_notify_schedule.py`가 오늘이 구글/네이버 중 어떤 날인지
-  안내 메시지를 계산해 카카오톡 "나에게 보내기"로 자동 전송.
-- 평일 **10:00**: `main_crawl.py`가 12개 키워드 순위를 조회 → `data/rank_history.xlsx`에
-  누적 저장 → 결과를 카카오톡으로 자동 전송 (메시지 하나당 200자 제한에 맞춰
-  필요하면 여러 통으로 자동 분할됨).
-- 두 스크립트 모두 **Windows Task Scheduler가 `python.exe`로 직접, 완전히
-  무인으로 실행**합니다. 전송은 `src/kakao_sender.py`가 카카오 REST API
-  (OAuth refresh_token)로 직접 처리하므로, Claude나 다른 외부 개입이 실행
-  시점에 전혀 필요 없습니다.
+- 평일 **09:00**: `main_notify_schedule.py` 하나가 다음을 순서대로 모두 처리합니다.
+  1. 오늘이 구글/네이버 중 어떤 날인지 안내 메시지를 카톡으로 전송
+  2. 이어서 곧바로 12개 키워드 순위를 조회
+  3. `data/rank_history.xlsx`에 결과 누적 저장
+  4. 순위 결과를 카톡으로 전송 (메시지 하나당 200자 제한에 맞춰 필요하면
+     여러 통으로 자동 분할됨)
+
+  즉 안내와 순위 결과가 **9시에 한 번에** 도착합니다 (크롤링에 걸리는 시간만큼
+  두 메시지 사이에 약간의 시차는 있을 수 있음). 이전에는 안내(9시)와 순위 결과
+  (10시)를 서로 다른 시각에 따로 보냈지만, 이제 하나로 합쳐졌습니다.
+- **Windows Task Scheduler가 `python.exe`로 직접, 완전히 무인으로 실행**합니다.
+  전송은 `src/kakao_sender.py`가 카카오 REST API(OAuth refresh_token)로 직접
+  처리하므로, Claude나 다른 외부 개입이 실행 시점에 전혀 필요 없습니다.
 - Excel 컬럼: `날짜 / 키워드 / 검색엔진 / 순위` (순위가 없으면 "미노출").
 
 추적 키워드: 종로보청기, 강남보청기, 수원보청기, 일산보청기, 인천보청기,
@@ -78,8 +82,8 @@
 ## 수동 실행 (테스트)
 
 ```
-python main_notify_schedule.py   # 9시 안내 카톡 전송 테스트
-python main_crawl.py             # 10시 크롤링 + 엑셀 저장 + 결과 카톡 전송 테스트
+python main_notify_schedule.py   # 9시 작업 전체 테스트: 안내 → 크롤링 → 결과, 모두 카톡 전송
+python main_crawl.py             # (선택) 순위 조회만 다시 돌려보고 싶을 때 단독 실행
 ```
 
 ## Windows Task Scheduler 자동 등록
@@ -92,17 +96,17 @@ powershell -ExecutionPolicy Bypass -File .\setup_task_scheduler.ps1
 ```
 
 `setup_task_scheduler.ps1`은 자기 위치(`$PSScriptRoot`)를 기준으로 상대 경로를
-사용하므로, 저장소를 다른 경로에 설치했어도 그대로 동작합니다. 다음 두 작업이
-평일 기준으로 등록됩니다:
+사용하므로, 저장소를 다른 경로에 설치했어도 그대로 동작합니다. 다음 작업이
+평일 기준으로 등록됩니다 (이전 버전에서 등록했던 10:00 `HearKorea_Rank_Crawl`
+작업이 남아있다면 자동으로 제거됩니다):
 
 | 작업 이름 | 시간 | 내용 |
 |---|---|---|
-| HearKorea_Schedule_Notify | 09:00 | `python main_notify_schedule.py` 실행 → 오늘의 스케줄 카톡 전송 |
-| HearKorea_Rank_Crawl | 10:00 | `python main_crawl.py` 실행 → 순위 조회 + 엑셀 저장 + 결과 카톡 전송 |
+| HearKorea_Schedule_Notify | 09:00 | `python main_notify_schedule.py` 실행 → 스케줄 안내 + 순위 조회 + 엑셀 저장 + 결과, 모두 카톡 전송 |
 
 `taskschd.msc`(작업 스케줄러)에서 등록 상태를 확인/수정할 수 있습니다. 실행
-로그는 `C:\nanoom-crawler\logs\notify.log`, `logs\crawl.log`에 쌓이므로, 등록
-후 로그를 보고 실제 실행/전송이 잘 되는지 확인하세요.
+로그는 `C:\nanoom-crawler\logs\notify.log`에 쌓이므로, 등록 후 로그를 보고
+실제 실행/전송이 잘 되는지 확인하세요.
 
 ### 참고: Play MCP MemoChat을 통한 수동/테스트 전송
 
@@ -119,8 +123,9 @@ Scheduler + `kakao_sender.py`(OAuth 직접 호출) 방식이 실제 운영용 �
 ```
 C:\nanoom-crawler\
   config.py                   # 키워드/도메인/경로 등 전역 설정
-  main_notify_schedule.py     # 9시: 스케줄 안내 → 카톡 자동 전송
-  main_crawl.py                # 10시: 크롤링 + 엑셀 저장 → 결과 카톡 자동 전송
+  main_notify_schedule.py     # 9시 자동 실행 진입점: 스케줄 안내 → 크롤링 → 결과 전송
+  main_crawl.py                # 순위 조회/엑셀 저장/메시지 분할 로직 (위 스크립트가 불러다 씀,
+                                #   필요시 수동 단독 실행도 가능)
   kakao_auth_setup.py          # 카카오 최초 인증(1회, 대화형)
   src/
     schedule_logic.py          # 구글/네이버 교대 로직
@@ -130,13 +135,14 @@ C:\nanoom-crawler\
       google_search.py         # 구글 순위 조회 (SerpApi 또는 Selenium 스크래핑)
       naver_search.py          # 네이버 순위 조회 (오픈API 또는 스크래핑)
   scheduler/
-    setup_task_scheduler.ps1   # 작업 스케줄러 등록 스크립트
-    run_notify.bat / run_crawl.bat
+    setup_task_scheduler.ps1   # 작업 스케줄러 등록 스크립트 (09:00 작업 1개)
+    run_notify.bat              # Task Scheduler가 실행 (main_notify_schedule.py)
+    run_crawl.bat                # 수동 재실행용 (main_crawl.py 단독 실행)
   data/
     rank_history.xlsx          # 결과 누적 저장 (자동 생성)
     kakao_token.json           # 카카오 토큰 (자동 생성, git에 포함 안 됨)
   logs/
-    notify.log / crawl.log     # Task Scheduler 실행 로그 (자동 생성)
+    notify.log                 # Task Scheduler 실행 로그 (자동 생성)
 ```
 
 ## 참고 및 한계
