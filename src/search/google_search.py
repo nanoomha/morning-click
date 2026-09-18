@@ -12,13 +12,29 @@
    설치하지 않아도 되지만, 로컬에 Google Chrome이 설치되어 있어야 한다.
 """
 from typing import Optional
-from urllib.parse import urlencode
+from urllib.parse import parse_qs, urlencode, urlparse
 
 import requests
 from bs4 import BeautifulSoup
 
 from config import DEFAULT_HEADERS, SERPAPI_KEY
 from src.search.base import SearchBlockedError, is_target_domain
+
+
+def _unwrap_google_redirect(href: str) -> str:
+    """구글이 링크를 '/url?q=실제주소&...' 형태(절대/상대 경로 모두 가능)로
+    감싸서 내려줄 때가 있다. 이 경우 href의 도메인은 항상 google.com(또는
+    비어있음)이 되어 대상 도메인과 절대 매칭되지 않으므로, q(또는 url) 쿼리
+    파라미터 안의 실제 주소를 꺼내 써야 한다.
+    """
+    parsed = urlparse(href)
+    is_google_redirect = parsed.path == "/url" and (not parsed.netloc or "google." in parsed.netloc)
+    if is_google_redirect:
+        query_params = parse_qs(parsed.query)
+        for key in ("q", "url"):
+            if query_params.get(key):
+                return query_params[key][0]
+    return href
 
 
 def search_rank(keyword: str, target_domain: str, max_results: int = 50) -> Optional[int]:
@@ -88,17 +104,16 @@ def _rank_via_selenium(keyword: str, target_domain: str, max_results: int) -> Op
         soup = BeautifulSoup(page_source, "html.parser")
         search_root = soup.select_one("#search") or soup
 
-        # 구글은 HTML 구조를 수시로 바꾸므로 여러 후보 선택자를 순서대로 시도한다.
-        result_blocks = search_root.select("div.g") or search_root.select(
-            "div[data-hveid] div.yuRUbf, div[data-hveid] div.tF2Cxc"
-        )
+        # 구글은 결과를 감싸는 div의 class를 수시로 바꾸지만(div.g 등), 각 결과의
+        # 제목은 거의 항상 <h3> 태그로 되어 있어 이를 기준으로 찾는 편이 훨씬
+        # 안정적이다. h3를 포함한 링크(<a>)를 문서 순서대로(=노출 순서대로) 모은다.
+        anchors = search_root.select("a:has(h3)")
 
         rank = 0
-        for block in result_blocks:
-            link_tag = block.select_one("a[href^='http']")
-            if not link_tag:
+        for anchor in anchors:
+            href = _unwrap_google_redirect(anchor.get("href", ""))
+            if not href.startswith("http"):
                 continue
-            href = link_tag.get("href", "")
             rank += 1
             if is_target_domain(href, target_domain):
                 return rank
