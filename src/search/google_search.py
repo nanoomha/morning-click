@@ -17,7 +17,7 @@ from urllib.parse import parse_qs, urlencode, urlparse
 import requests
 from bs4 import BeautifulSoup
 
-from config import DEFAULT_HEADERS, SERPAPI_KEY
+from config import SERPAPI_KEY
 from src.search.base import SearchBlockedError, is_target_domain
 
 
@@ -50,6 +50,7 @@ def _rank_via_serpapi(keyword: str, target_domain: str, max_results: int) -> Opt
         "google_domain": "google.co.kr",
         "gl": "kr",
         "hl": "ko",
+        "device": "mobile",
         "num": max_results,
         "api_key": SERPAPI_KEY,
     }
@@ -67,6 +68,14 @@ def _rank_via_serpapi(keyword: str, target_domain: str, max_results: int) -> Opt
     return None
 
 
+# 실제 고객은 대부분 모바일로 검색하므로, SerpApi(device=mobile)와 동일하게
+# Selenium 폴백도 모바일 화면/UA로 렌더링해 순위 기준을 맞춘다.
+MOBILE_USER_AGENT = (
+    "Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 "
+    "(KHTML, like Gecko) Chrome/124.0.0.0 Mobile Safari/537.36"
+)
+
+
 def _build_chrome_driver():
     from selenium import webdriver
     from selenium.webdriver.chrome.options import Options
@@ -78,7 +87,13 @@ def _build_chrome_driver():
     options.add_argument("--disable-dev-shm-usage")
     options.add_argument("--disable-blink-features=AutomationControlled")
     options.add_argument("--lang=ko-KR")
-    options.add_argument(f"user-agent={DEFAULT_HEADERS['User-Agent']}")
+    options.add_experimental_option(
+        "mobileEmulation",
+        {
+            "deviceMetrics": {"width": 412, "height": 915, "pixelRatio": 2.625},
+            "userAgent": MOBILE_USER_AGENT,
+        },
+    )
     options.add_experimental_option("excludeSwitches", ["enable-automation"])
     options.add_experimental_option("useAutomationExtension", False)
 
