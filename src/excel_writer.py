@@ -5,16 +5,17 @@ from typing import List, Optional, Tuple
 
 from openpyxl import Workbook, load_workbook
 
-HEADER = ["날짜", "키워드", "검색엔진", "순위"]
+HEADER = ["날짜", "그룹", "지점", "검색엔진", "검색어", "순위"]
 
 
 def append_results(
     excel_path: Path,
     result_date: date,
+    group: str,
     engine_label: str,
-    results: List[Tuple[str, Optional[int]]],
+    results: List[Tuple[str, str, Optional[int]]],
 ) -> None:
-    """(키워드, 순위) 목록을 엑셀 파일 맨 아래에 한 행씩 추가한다.
+    """(지점 라벨, 검색어, 순위) 목록을 엑셀 파일 맨 아래에 한 행씩 추가한다.
 
     파일이 없으면 헤더를 포함해 새로 생성한다. 순위가 None이면 "미노출"로 기록한다.
     """
@@ -30,7 +31,9 @@ def append_results(
         sheet.append(HEADER)
 
     date_str = result_date.strftime("%Y-%m-%d")
-    for keyword, rank in results:
-        sheet.append([date_str, keyword, engine_label, rank if rank is not None else "미노출"])
+    for label, search_term, rank in results:
+        sheet.append(
+            [date_str, group, label, engine_label, search_term, rank if rank is not None else "미노출"]
+        )
 
     workbook.save(excel_path)
