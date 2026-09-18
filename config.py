@@ -42,6 +42,9 @@ SERPAPI_KEY = os.getenv("SERPAPI_KEY", "")
 # Kakao "나에게 보내기"
 KAKAO_REST_API_KEY = os.getenv("KAKAO_REST_API_KEY", "")
 KAKAO_REDIRECT_URI = os.getenv("KAKAO_REDIRECT_URI", "https://localhost.com/oauth")
+# 카카오 개발자 콘솔의 [카카오 로그인 > 보안]에서 Client Secret을 "사용함(필수)"로
+# 설정한 경우에만 필요. 아니면 비워둔다.
+KAKAO_CLIENT_SECRET = os.getenv("KAKAO_CLIENT_SECRET", "")
 KAKAO_TOKEN_FILE = BASE_DIR / "data" / "kakao_token.json"
 
 # 결과 저장 Excel 파일

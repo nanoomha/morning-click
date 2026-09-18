@@ -8,7 +8,7 @@ import json
 
 import requests
 
-from config import KAKAO_REST_API_KEY, KAKAO_TOKEN_FILE
+from config import KAKAO_CLIENT_SECRET, KAKAO_REST_API_KEY, KAKAO_TOKEN_FILE
 
 TOKEN_URL = "https://kauth.kakao.com/oauth/token"
 SEND_URL = "https://kapi.kakao.com/v2/api/talk/memo/default/send"
@@ -33,15 +33,15 @@ def _save_tokens(tokens: dict) -> None:
 
 
 def _refresh_access_token(tokens: dict) -> dict:
-    resp = requests.post(
-        TOKEN_URL,
-        data={
-            "grant_type": "refresh_token",
-            "client_id": KAKAO_REST_API_KEY,
-            "refresh_token": tokens["refresh_token"],
-        },
-        timeout=15,
-    )
+    token_data = {
+        "grant_type": "refresh_token",
+        "client_id": KAKAO_REST_API_KEY,
+        "refresh_token": tokens["refresh_token"],
+    }
+    if KAKAO_CLIENT_SECRET:
+        token_data["client_secret"] = KAKAO_CLIENT_SECRET
+
+    resp = requests.post(TOKEN_URL, data=token_data, timeout=15)
     resp.raise_for_status()
     new_tokens = resp.json()
 

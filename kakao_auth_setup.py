@@ -14,7 +14,12 @@ from urllib.parse import parse_qs, urlparse
 
 import requests
 
-from config import KAKAO_REDIRECT_URI, KAKAO_REST_API_KEY, KAKAO_TOKEN_FILE
+from config import (
+    KAKAO_CLIENT_SECRET,
+    KAKAO_REDIRECT_URI,
+    KAKAO_REST_API_KEY,
+    KAKAO_TOKEN_FILE,
+)
 
 AUTHORIZE_URL = "https://kauth.kakao.com/oauth/authorize"
 TOKEN_URL = "https://kauth.kakao.com/oauth/token"
@@ -46,17 +51,23 @@ def main() -> None:
             raise SystemExit("URL에서 code 파라미터를 찾지 못했습니다.")
         code = params["code"][0]
 
-    resp = requests.post(
-        TOKEN_URL,
-        data={
-            "grant_type": "authorization_code",
-            "client_id": KAKAO_REST_API_KEY,
-            "redirect_uri": KAKAO_REDIRECT_URI,
-            "code": code,
-        },
-        timeout=15,
-    )
-    resp.raise_for_status()
+    token_data = {
+        "grant_type": "authorization_code",
+        "client_id": KAKAO_REST_API_KEY,
+        "redirect_uri": KAKAO_REDIRECT_URI,
+        "code": code,
+    }
+    if KAKAO_CLIENT_SECRET:
+        token_data["client_secret"] = KAKAO_CLIENT_SECRET
+
+    resp = requests.post(TOKEN_URL, data=token_data, timeout=15)
+    if not resp.ok:
+        raise SystemExit(
+            f"토큰 발급 요청 실패 (HTTP {resp.status_code}): {resp.text}\n"
+            "카카오 개발자 콘솔의 [카카오 로그인 > 보안]에서 Client Secret이 "
+            "\"사용함(필수)\"으로 되어 있다면, 그 값을 .env의 KAKAO_CLIENT_SECRET에 "
+            "넣고 다시 시도하세요."
+        )
     tokens = resp.json()
 
     if "access_token" not in tokens:
