@@ -14,14 +14,21 @@ from typing import List, Optional
 
 import requests
 
-from config import DEFAULT_HEADERS
 from src.search.base import SearchBlockedError
 
 SEARCH_URL = "https://map.naver.com/p/api/search/allSearch"
 
+# 실제 고객은 대부분 모바일로 검색하므로, 구글 조회와 마찬가지로 모바일
+# User-Agent로 요청한다 (네이버 플레이스 순위 자체는 위치/평판 기반이라
+# PC/모바일 차이가 구글 organic 검색만큼 크지는 않지만, 기준은 통일해둔다).
+MOBILE_USER_AGENT = (
+    "Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 "
+    "(KHTML, like Gecko) Chrome/124.0.0.0 Mobile Safari/537.36"
+)
+
 HEADERS = {
-    "User-Agent": DEFAULT_HEADERS["User-Agent"],
-    "Referer": "https://map.naver.com/",
+    "User-Agent": MOBILE_USER_AGENT,
+    "Referer": "https://m.map.naver.com/",
     "Accept": "application/json, text/plain, */*",
 }
 
