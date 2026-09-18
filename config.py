@@ -118,7 +118,7 @@ LOCATIONS = [
 CYCLE_REFERENCE_DATE = date(2026, 9, 18)
 
 # 순위 조회 시 확인할 최대 검색결과 개수 (이 안에서 못 찾으면 "미노출" 처리)
-MAX_RESULTS_TO_CHECK = int(os.getenv("MAX_RESULTS_TO_CHECK", "50"))
+MAX_RESULTS_TO_CHECK = int(os.getenv("MAX_RESULTS_TO_CHECK", "20"))
 
 # SerpApi (설정되어 있으면 구글 스크래핑 대신 API를 우선 사용)
 SERPAPI_KEY = os.getenv("SERPAPI_KEY", "")

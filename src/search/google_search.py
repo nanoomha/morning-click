@@ -44,27 +44,43 @@ def search_rank(keyword: str, target_domain: str, max_results: int = 50) -> Opti
 
 
 def _rank_via_serpapi(keyword: str, target_domain: str, max_results: int) -> Optional[int]:
-    params = {
-        "engine": "google",
-        "q": keyword,
-        "google_domain": "google.co.kr",
-        "gl": "kr",
-        "hl": "ko",
-        "device": "mobile",
-        "num": max_results,
-        "api_key": SERPAPI_KEY,
-    }
-    resp = requests.get("https://serpapi.com/search", params=params, timeout=20)
-    resp.raise_for_status()
-    data = resp.json()
+    # 모바일 검색은 num 파라미터를 요청해도 한 번에 10개까지만 내려주고, 그
+    # 이상은 start 파라미터로 다음 페이지를 따로 요청해야 한다(데스크톱과
+    # 다른 동작). 그래서 position 필드를 믿지 않고 직접 순위를 센다.
+    rank = 0
+    start = 0
+    while rank < max_results:
+        params = {
+            "engine": "google",
+            "q": keyword,
+            "google_domain": "google.co.kr",
+            "gl": "kr",
+            "hl": "ko",
+            "device": "mobile",
+            "start": start,
+            "api_key": SERPAPI_KEY,
+        }
+        resp = requests.get("https://serpapi.com/search", params=params, timeout=20)
+        resp.raise_for_status()
+        data = resp.json()
 
-    if "error" in data:
-        raise RuntimeError(f"SerpApi 오류: {data['error']}")
+        if "error" in data:
+            raise RuntimeError(f"SerpApi 오류: {data['error']}")
 
-    for item in data.get("organic_results", []):
-        link = item.get("link", "")
-        if link and is_target_domain(link, target_domain):
-            return item.get("position")
+        organic = data.get("organic_results", [])
+        if not organic:
+            break  # 더 내려줄 결과가 없음
+
+        for item in organic:
+            rank += 1
+            link = item.get("link", "")
+            if link and is_target_domain(link, target_domain):
+                return rank
+            if rank >= max_results:
+                break
+
+        start += len(organic)
+
     return None
 
 
