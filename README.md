@@ -41,11 +41,13 @@ A그룹 구글 → A그룹 네이버 → B그룹 구글 → B그룹 네이버
 평일 **09:00**: `main_notify_schedule.py` 하나가 다음을 순서대로 모두
 처리합니다.
 1. 오늘이 영업일이 아니면(주말/공휴일) 아무것도 하지 않고 조용히 종료
-2. 영업일이면, 오늘이 어느 그룹·어느 엔진 차례인지 안내를 카톡으로 전송
-3. 이어서 곧바로 그 그룹 3개 지점의 순위 조회
-4. `data/rank_history.xlsx`에 결과 누적 저장 (컬럼: 날짜/그룹/지점/검색엔진/검색어/순위)
-5. 순위 결과를 카톡으로 전송 (메시지 하나당 200자 제한에 맞춰 필요하면
-   여러 통으로 자동 분할됨)
+2. 영업일이면, 오늘 그룹·엔진에 맞춰 그 그룹 3개 지점의 순위 조회
+3. `data/rank_history.xlsx`에 결과 누적 저장 (컬럼: 날짜/그룹/지점/검색엔진/검색어/순위)
+4. **날짜·검색엔진·지점별 키워드·순위가 모두 담긴 결과를 카톡으로 한 번에
+   전송** (메시지 하나당 200자 제한에 맞춰 필요하면 여러 통으로 자동 분할됨)
+
+카톡은 하루에 이 한 종류 메시지만 옵니다 (예: "📊 나눔보청기 C그룹 [네이버]
+순위 결과 (2026-09-29)\n- 부산서면(부산보청기): 1위\n...").
 
 **Windows Task Scheduler가 `python.exe`로 직접, 완전히 무인으로 실행**합니다
 (Task Scheduler 자체는 공휴일을 모르므로, 공휴일 스킵은 위 1번처럼 스크립트가
@@ -134,7 +136,7 @@ powershell -ExecutionPolicy Bypass -File .\setup_task_scheduler.ps1
 
 | 작업 이름 | 시간 | 내용 |
 |---|---|---|
-| HearKorea_Schedule_Notify | 09:00 | `python main_notify_schedule.py` 실행 → (영업일이면) 스케줄 안내 + 순위 조회 + 엑셀 저장 + 결과, 모두 카톡 전송 |
+| HearKorea_Schedule_Notify | 09:00 | `python main_notify_schedule.py` 실행 → (영업일이면) 순위 조회 + 엑셀 저장 + 결과 카톡 전송(한 통) |
 
 `taskschd.msc`(작업 스케줄러)에서 등록 상태를 확인/수정할 수 있습니다. 실행
 로그는 `C:\nanoom-crawler\logs\notify.log`에 쌓이므로, 등록 후 로그를 보고
@@ -145,7 +147,7 @@ powershell -ExecutionPolicy Bypass -File .\setup_task_scheduler.ps1
 ```
 C:\nanoom-crawler\
   config.py                   # 지점 목록(LOCATIONS)/그룹/순환 기준일 등 전역 설정
-  main_notify_schedule.py     # 9시 자동 실행 진입점: 스케줄 안내 → 크롤링 → 결과 전송
+  main_notify_schedule.py     # 9시 자동 실행 진입점: 크롤링 → 결과 카톡 전송(한 통)
   main_crawl.py                # 그룹별 순위 조회/엑셀 저장/메시지 분할 로직 (위 스크립트가
                                 #   불러다 씀, 필요시 수동 단독 실행도 가능)
   kakao_auth_setup.py          # 카카오 최초 인증(1회, 대화형)
