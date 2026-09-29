@@ -21,7 +21,7 @@ from config import EXCEL_PATH
 from main_crawl import build_summary_chunks, fetch_group_ranks
 from src.excel_writer import append_results
 from src.kakao_sender import send_text_to_me
-from src.schedule_logic import engine_label_ko, get_today_group_and_engine
+from src.schedule_logic import GOOGLE, engine_label_ko, get_today_group_and_engine
 
 
 def main() -> None:
@@ -31,6 +31,13 @@ def main() -> None:
         print(f"{today}: 주말/공휴일이라 오늘은 실행하지 않습니다.")
         return
     group, engine = group_and_engine
+
+    if engine != GOOGLE:
+        # 네이버 플레이스 순위는 현재 신뢰할 수 있는 방법이 없어(공식 API는
+        # 5위까지만 확인 가능, 비공식 스크래핑은 캡차 차단 위험) 카톡 전송을
+        # 하지 않는다. 구글 날만 정상적으로 순위를 조회해 전송한다.
+        print(f"{today}: {group}그룹 네이버 날 — 순위 알림을 보내지 않습니다.")
+        return
 
     results = fetch_group_ranks(group, engine)
     append_results(EXCEL_PATH, today, group, engine_label_ko(engine), results)
