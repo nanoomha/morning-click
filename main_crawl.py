@@ -85,13 +85,17 @@ def build_summary_chunks(
     results: List[LocationResult],
     limit: int = MESSAGE_CHAR_LIMIT,
 ) -> List[str]:
-    """결과를 메시지 하나당 글자수 제한(기본 200자) 안에 들어가도록 여러 개로 나눈다."""
+    """결과를 메시지 하나당 글자수 제한(기본 200자) 안에 들어가도록 여러 개로 나눈다.
+
+    날짜/그룹/검색엔진/지점/키워드/순위를 전부 한 메시지(들)에 담는다.
+    """
     label = engine_label_ko(engine)
     header = f"📊 나눔보청기 {group}그룹 [{label}] 순위 결과 ({today.strftime('%Y-%m-%d')})"
     lines = []
-    for loc_label, _search_term, rank in results:
+    for loc_label, search_term, rank in results:
+        keyword = search_term.split("→")[0]  # 네이버는 "검색어→업체명" 형태라 검색어만 표시
         rank_text = f"{rank}위" if rank is not None else "미노출"
-        lines.append(f"- {loc_label}: {rank_text}")
+        lines.append(f"- {loc_label}({keyword}): {rank_text}")
 
     chunks: List[str] = []
     current = [header]
