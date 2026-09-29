@@ -86,11 +86,14 @@ refresh_token)로 직접 처리하므로, Claude나 다른 외부 개입이 실�
   **PC에 Google Chrome이 설치되어 있어야** 하고, 크롬이 자동화된 실행을
   차단당하거나(백신 등) 버전이 안 맞으면 실패할 수 있어 SerpApi 쪽이 더
   안정적입니다.
-- **네이버 플레이스**: 별도 API 키가 필요 없습니다. 네이버 지도가 내부적으로
-  쓰는 검색 API를 그대로 호출합니다 (`src/search/naver_place_search.py`).
-  다만 이건 네이버 공식 API가 아니라서, 네이버가 응답 구조를 바꾸면 깨질 수
-  있습니다 — 처음 실행했을 때 결과가 이상하면(전부 미노출 등) 로그의 에러
-  메시지를 확인해 알려주세요.
+- **네이버 플레이스**: https://developers.naver.com/apps/#/register 에서
+  애플리케이션 등록(사용 API에서 "검색" 체크) 후 발급받은 Client ID/Secret을
+  `.env`의 `NAVER_CLIENT_ID`, `NAVER_CLIENT_SECRET`에 입력하면 네이버 공식
+  지역 검색 API로 조회합니다 (강력 권장 — 캡차 차단 없이 안정적이지만, API
+  자체 한계로 **최대 5위까지만** 확인 가능). 설정하지 않으면 네이버 지도가
+  내부적으로 쓰는 비공식 검색 API를 그대로 호출하는데(`src/search/naver_place_search.py`),
+  더 깊은 순위까지 볼 수 있는 대신 네이버가 캡차로 차단하거나 응답 구조를
+  바꾸면 깨질 수 있습니다.
 
 ## 카카오톡 알림 설정 (필수)
 
@@ -157,7 +160,7 @@ C:\nanoom-crawler\
     kakao_sender.py            # 카카오 "나에게 보내기" 전송 (OAuth REST API)
     search/
       google_search.py         # 구글 홈페이지 순위 조회 (SerpApi 또는 Selenium 스크래핑)
-      naver_place_search.py    # 네이버 플레이스(지도) 순위 조회 (비공식 API)
+      naver_place_search.py    # 네이버 플레이스(지도) 순위 조회 (공식 지역검색 API 또는 비공식 스크래핑)
   scheduler/
     setup_task_scheduler.ps1   # 작업 스케줄러 등록 스크립트 (09:00 작업 1개)
     run_notify.bat              # Task Scheduler가 실행 (main_notify_schedule.py)
@@ -171,11 +174,14 @@ C:\nanoom-crawler\
 
 ## 참고 및 한계
 
-- **네이버 플레이스 조회는 비공식 API를 씁니다.** 네이버가 응답 구조를
-  바꾸면 예고 없이 깨질 수 있습니다. 특정 지점이 계속 "미노출"로만 나오는데
-  실제로는 노출되고 있어야 한다면, 이 API 응답 구조가 바뀐 것일 수 있으니
-  로그를 보고 알려주세요 (`src/search/naver_place_search.py`의
-  `_extract_place_names()`를 실제 응답에 맞게 고치면 됩니다).
+- **네이버 플레이스 조회**: `NAVER_CLIENT_ID`/`SECRET`을 설정하면 공식 API를
+  쓰므로 캡차 차단 걱정이 없지만, API 자체 한계로 최대 5위까지만 확인됩니다
+  (6위 밖은 실제로 노출 중이어도 "미노출"로 기록됨). 설정하지 않고 비공식
+  스크래핑을 쓰는 경우, 네이버가 `SearchBlockedError`(캡차 차단)를 던지거나
+  응답 구조를 바꿔 깨질 수 있습니다 — 이럴 땐 `NAVER_CLIENT_ID`/`SECRET`
+  설정을 권장하며, 그래도 스크래핑을 써야 한다면 로그를 보고
+  `src/search/naver_place_search.py`의 `_extract_place_names()`를 실제
+  응답에 맞게 고쳐야 합니다.
 - 네이버 플레이스 업체명은 **부분 문자열 일치**로 찾습니다 (`config.py`의
   `naver_place_name`이 실제 검색 결과 업체명에 포함되는지). 비슷한 이름의
   다른 지점/업체가 있으면 잘못 매칭될 수 있으니 상호명을 정확히 입력하세요.

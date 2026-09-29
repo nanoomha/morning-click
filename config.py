@@ -123,6 +123,11 @@ MAX_RESULTS_TO_CHECK = int(os.getenv("MAX_RESULTS_TO_CHECK", "20"))
 # SerpApi (설정되어 있으면 구글 스크래핑 대신 API를 우선 사용)
 SERPAPI_KEY = os.getenv("SERPAPI_KEY", "")
 
+# Naver 오픈 API의 지역 검색(local). 설정되어 있으면 네이버 플레이스 조회 시
+# 비공식 스크래핑 대신 이 공식 API를 우선 사용한다 (최대 5위까지만 확인 가능).
+NAVER_CLIENT_ID = os.getenv("NAVER_CLIENT_ID", "")
+NAVER_CLIENT_SECRET = os.getenv("NAVER_CLIENT_SECRET", "")
+
 # Kakao "나에게 보내기"
 KAKAO_REST_API_KEY = os.getenv("KAKAO_REST_API_KEY", "")
 KAKAO_REDIRECT_URI = os.getenv("KAKAO_REDIRECT_URI", "https://localhost.com/oauth")
