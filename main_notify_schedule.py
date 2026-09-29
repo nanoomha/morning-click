@@ -14,18 +14,22 @@ Windows Task Scheduler는 평일마다 이 스크립트를 실행하지만, 대�
 """
 from datetime import date
 
-from config import EXCEL_PATH
+from config import EXCEL_PATH, LOCATIONS
 from main_crawl import build_summary_chunks, fetch_group_ranks
 from src.excel_writer import append_results
 from src.kakao_sender import send_text_to_me
-from src.schedule_logic import engine_label_ko, get_today_group_and_engine
+from src.schedule_logic import GOOGLE, engine_label_ko, get_today_group_and_engine
 
 
 def build_schedule_message(today: date, group: str, engine: str) -> str:
     label = engine_label_ko(engine)
+    keyword_field = "google_keyword" if engine == GOOGLE else "naver_keyword"
+    group_locations = [loc for loc in LOCATIONS if loc["group"] == group]
+    keyword_lines = "\n".join(f"- {loc['label']}: {loc[keyword_field]}" for loc in group_locations)
     return (
         f"🔔 나눔보청기 순위 추적 안내 ({today.strftime('%Y-%m-%d')})\n"
         f"오늘은 {group}그룹을 [{label}]로 확인하는 날입니다.\n"
+        f"{keyword_lines}\n"
         f"잠시 후 순위 조회 결과를 이어서 보내드립니다."
     )
 
