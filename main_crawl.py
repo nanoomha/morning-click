@@ -18,7 +18,15 @@ naver_place_name 업체의 순위를 조회한다. 같은 검색어를 쓰는 �
 import sys
 import traceback
 from datetime import date
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Tuple, Union
+
+# Windows 콘솔/작업 스케줄러 로그로 리다이렉트될 때 기본 인코딩(cp949)이
+# 이모지(🔔, 📊 등)를 못 담아 print()가 그대로 죽는 경우가 있어, 표준입출력을
+# UTF-8로 강제한다.
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+if hasattr(sys.stderr, "reconfigure"):
+    sys.stderr.reconfigure(encoding="utf-8", errors="replace")
 
 from config import EXCEL_PATH, HOMEPAGE_DOMAIN, LOCATIONS, MAX_RESULTS_TO_CHECK
 from src.excel_writer import append_results
@@ -26,8 +34,12 @@ from src.kakao_sender import send_text_to_me
 from src.schedule_logic import GOOGLE, engine_label_ko, get_today_group_and_engine
 from src.search import google_search, naver_place_search
 
-# (지점 라벨, 검색어, 순위)
-LocationResult = Tuple[str, str, Optional[int]]
+# 순위 조회 자체가 실패했을 때(타임아웃 등 네트워크 오류) 쓰는 표시.
+# None은 "정상적으로 확인했는데 안 나옴"(미노출)이라는 뜻이라, 둘을 구분한다.
+CHECK_FAILED = "확인 실패"
+
+# (지점 라벨, 검색어, 순위 — int(순위), None(미노출), 또는 CHECK_FAILED(조회 실패))
+LocationResult = Tuple[str, str, Union[int, str, None]]
 
 
 def _locations_for_group(group: str) -> List[dict]:
@@ -39,7 +51,7 @@ def fetch_group_ranks(group: str, engine: str) -> List[LocationResult]:
     results: List[LocationResult] = []
 
     if engine == GOOGLE:
-        rank_cache: Dict[str, Optional[int]] = {}
+        rank_cache: Dict[str, Union[int, str, None]] = {}
         for loc in locations:
             keyword = loc["google_keyword"]
             try:
@@ -51,7 +63,8 @@ def fetch_group_ranks(group: str, engine: str) -> List[LocationResult]:
             except Exception:  # noqa: BLE001 - 한 지점 실패가 전체를 막지 않도록 함
                 print(f"[경고] '{keyword}'(구글) 순위 조회 실패:", file=sys.stderr)
                 traceback.print_exc(file=sys.stderr)
-                rank = None
+                rank = CHECK_FAILED
+                rank_cache[keyword] = rank
             results.append((loc["label"], keyword, rank))
         return results
 
@@ -70,7 +83,7 @@ def fetch_group_ranks(group: str, engine: str) -> List[LocationResult]:
         except Exception:  # noqa: BLE001
             print(f"[경고] '{keyword}'(네이버 플레이스: {loc['naver_place_name']}) 순위 조회 실패:", file=sys.stderr)
             traceback.print_exc(file=sys.stderr)
-            rank = None
+            rank = CHECK_FAILED
         results.append((loc["label"], f"{keyword}→{loc['naver_place_name']}", rank))
     return results
 
@@ -94,7 +107,12 @@ def build_summary_chunks(
     lines = []
     for loc_label, search_term, rank in results:
         keyword = search_term.split("→")[0]  # 네이버는 "검색어→업체명" 형태라 검색어만 표시
-        rank_text = f"{rank}위" if rank is not None else "미노출"
+        if rank == CHECK_FAILED:
+            rank_text = CHECK_FAILED
+        elif rank is not None:
+            rank_text = f"{rank}위"
+        else:
+            rank_text = "미노출"
         lines.append(f"- {loc_label}({keyword}): {rank_text}")
 
     chunks: List[str] = []

@@ -16,7 +16,16 @@ Windows Task Scheduler는 평일마다 이 스크립트를 실행하지만, 대�
 전송은 src/kakao_sender.py가 카카오 REST API(OAuth refresh_token)를 통해
 직접 처리하므로 Claude 세션 등 외부 개입 없이 완전히 무인으로 동작한다.
 """
+import sys
 from datetime import date
+
+# Windows 콘솔/작업 스케줄러 로그로 리다이렉트될 때 기본 인코딩(cp949)이
+# 이모지(🔔, 📊 등)를 못 담아 print()가 그대로 죽는 경우가 있어, 표준입출력을
+# UTF-8로 강제한다.
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+if hasattr(sys.stderr, "reconfigure"):
+    sys.stderr.reconfigure(encoding="utf-8", errors="replace")
 
 from config import EXCEL_PATH, LOCATIONS
 from main_crawl import build_summary_chunks, fetch_group_ranks

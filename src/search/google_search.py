@@ -11,6 +11,7 @@
    Selenium 4.6+ 는 Selenium Manager를 내장하고 있어 별도로 chromedriver를
    설치하지 않아도 되지만, 로컬에 Google Chrome이 설치되어 있어야 한다.
 """
+import time
 from typing import Optional
 from urllib.parse import parse_qs, urlencode, urlparse
 
@@ -19,6 +20,31 @@ from bs4 import BeautifulSoup
 
 from config import SERPAPI_KEY
 from src.search.base import SearchBlockedError, is_target_domain
+
+SERPAPI_MAX_RETRIES = 3
+SERPAPI_TIMEOUT_SECONDS = 30
+SERPAPI_RETRY_BACKOFF_SECONDS = 3
+
+
+def _serpapi_get(params: dict) -> dict:
+    """일시적인 네트워크 오류(타임아웃 등)는 순위가 없다는 뜻이 아니므로,
+    바로 실패 처리하지 않고 몇 차례 재시도한다.
+    """
+    last_error: Optional[Exception] = None
+    for attempt in range(1, SERPAPI_MAX_RETRIES + 1):
+        try:
+            resp = requests.get(
+                "https://serpapi.com/search", params=params, timeout=SERPAPI_TIMEOUT_SECONDS
+            )
+            resp.raise_for_status()
+            return resp.json()
+        except (requests.exceptions.Timeout, requests.exceptions.ConnectionError) as exc:
+            last_error = exc
+            if attempt < SERPAPI_MAX_RETRIES:
+                time.sleep(SERPAPI_RETRY_BACKOFF_SECONDS * attempt)
+    raise RuntimeError(
+        f"SerpApi 요청이 {SERPAPI_MAX_RETRIES}번 시도 후에도 실패했습니다 (네트워크 문제로 보임): {last_error}"
+    ) from last_error
 
 
 def _unwrap_google_redirect(href: str) -> str:
@@ -60,9 +86,7 @@ def _rank_via_serpapi(keyword: str, target_domain: str, max_results: int) -> Opt
             "start": start,
             "api_key": SERPAPI_KEY,
         }
-        resp = requests.get("https://serpapi.com/search", params=params, timeout=20)
-        resp.raise_for_status()
-        data = resp.json()
+        data = _serpapi_get(params)
 
         if "error" in data:
             raise RuntimeError(f"SerpApi 오류: {data['error']}")
